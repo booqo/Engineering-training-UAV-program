@@ -1,0 +1,70 @@
+import sensor, image, time
+import protocol
+import utils
+from pyb import UART
+import json
+sensor.reset()
+sensor.set_pixformat(sensor.RGB565)
+sensor.set_framesize(sensor.QQVGA)
+sensor.skip_frames(time = 2000)
+sensor.set_auto_gain(False)
+sensor.set_auto_whitebal(False)
+clock = time.clock()
+red_threshold   = ( 65,75,-60,-40,30,48)
+green_threshold   = ( 65,75,-60,-40,30,48)
+blue_threshold   = ( 65,75,-60,-40,30,48)
+yellow_threshold   = ( 65,75,-60,-40,30,48)
+xPositionNow = 0
+yPositionNow = 0
+xPositionLast = 0
+yPositionLast = 0
+imageSize = 128
+count=0
+matrix = [[] for i in range(10)]
+index=0
+xIndex=protocol.getColor()
+print('xIndex',xIndex)
+xThreshold=(0,0,0,0,0,0)
+if xIndex==0x01:
+	xThreshold=red_threshold
+	print('当前要识别的小球颜色是红色')
+elif xIndex==0x02:
+	xThreshold=green_threshold
+	print('当前要识别的小球的颜色是绿色')
+elif xIndex==0x03:
+	xThreshold=blue_threshold
+	print('当前要识别的小球的颜色是蓝色')
+elif xIndex==0x04:
+	xThreshold=yellow_threshold
+	print('当前要识别的小球的颜色是黄色')
+else:
+	xThreshold=red_threshold
+	print('默认颜色是红色')
+while(True):
+	clock.tick()
+	img = sensor.snapshot()
+	blobs = img.find_blobs([xThreshold], pixels_threshold=10, area_threshold=10, merge=True)
+	if blobs:
+		print('sum ==================================', len(blobs),'\n\r')
+		count=0
+		for blob in blobs:
+			img.draw_cross(blob.cx(), blob.cy())
+			img.draw_rectangle(blob[0:4])
+			img.draw_circle(blob[5], blob[6],10, color = (255, 0, 0))
+			x = blob.cx() - (imageSize/2)
+			y = (imageSize/2) - blob.cy()
+			xPositionLast = xPositionNow
+			yPositionLast = yPositionNow
+			xPositionNow = x * 0.7
+			yPositionNow = y * 0.7
+			output_str="[%d,%d]" % (blob[5], blob[6])
+			print(index,output_str)
+			count=count+1
+			if count<=5:
+				matrix[index].append(blob[5])
+				matrix[index].append(blob[6])
+				time.sleep(1000)
+		index=index+1
+		print('第几次识别',index)
+		if index==10:
+			index=0
